@@ -822,6 +822,68 @@ static int _apc_modbus_date_from_nut(const char *value, uint16_t *output, size_t
 static apc_modbus_converter_t _apc_modbus_date_conversion = { _apc_modbus_date_to_nut, _apc_modbus_date_from_nut };
 
 /*
+ * Sensitivity setting conversion:
+ * Bitfield values: bit 0 = normal, bit 1 = reduced, bit 2 = low
+ */
+static int _apc_modbus_sensitivity_to_nut(const apc_modbus_value_t *value, char *output, size_t output_len)
+{
+	const char *sensitivity;
+	int res;
+
+	if (value == NULL || output == NULL || output_len == 0) {
+		return 0;
+	}
+
+	if (value->type != APC_VT_UINT) {
+		return 0;
+	}
+
+	switch (value->data.uint_value) {
+	case 1: /* bit 0 */
+		sensitivity = "normal";
+		break;
+	case 2: /* bit 1 */
+		sensitivity = "reduced";
+		break;
+	case 4: /* bit 2 */
+		sensitivity = "low";
+		break;
+	default:
+		return 0;
+	}
+
+	res = snprintf(output, output_len, "%s", sensitivity);
+	if (res < 0 || (size_t)res >= output_len) {
+		return 0;
+	}
+
+	return 1;
+}
+
+static int _apc_modbus_sensitivity_from_nut(const char *value, uint16_t *output, size_t output_len)
+{
+	uint64_t uint_value;
+
+	if (value == NULL || output == NULL || output_len == 0) {
+		return 0;
+	}
+
+	if (strcasecmp(value, "normal") == 0) {
+		uint_value = 1; /* bit 0 */
+	} else if (strcasecmp(value, "reduced") == 0) {
+		uint_value = 2; /* bit 1 */
+	} else if (strcasecmp(value, "low") == 0) {
+		uint_value = 4; /* bit 2 */
+	} else {
+		return 0;
+	}
+
+	return _apc_modbus_from_uint64(uint_value, output, output_len);
+}
+
+static apc_modbus_converter_t _apc_modbus_sensitivity_conversion = { _apc_modbus_sensitivity_to_nut, _apc_modbus_sensitivity_from_nut };
+
+/*
  * Timer countdown conversion:
  * -1: NotActive - No countdown in progress
  *  0: CountdownExpired - Countdown has ended
@@ -925,6 +987,7 @@ static apc_modbus_register_t apc_modbus_register_map_dynamic[] = {
 static apc_modbus_register_t apc_modbus_register_map_static[] = {
 	{ "input.transfer.high",            1026,   1,  APC_VT_UINT,     APC_VF_RW, NULL,                                           "%" PRIu64, 0,  NULL    },
 	{ "input.transfer.low",             1027,   1,  APC_VT_UINT,     APC_VF_RW, NULL,                                           "%" PRIu64, 0,  NULL    },
+	{ "input.sensitivity",              1028,   1,  APC_VT_UINT,     APC_VF_RW, &_apc_modbus_sensitivity_conversion,            NULL,       0,  NULL    },
 	{ "ups.delay.shutdown",             1029,   1,  APC_VT_INT,      APC_VF_RW, NULL,                                           "%" PRIi64, 0,  NULL    },
 	{ "ups.delay.start",                1030,   1,  APC_VT_INT,      APC_VF_RW, NULL,                                           "%" PRIi64, 0,  NULL    },
 	{ "ups.delay.reboot",               1031,   2,  APC_VT_INT,      APC_VF_RW, NULL,                                           "%" PRIi64, 0,  NULL    },
